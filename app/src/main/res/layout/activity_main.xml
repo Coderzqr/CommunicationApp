@@ -25,6 +25,12 @@
                 android:text="用户名："
                 android:textSize="18sp" />
 
+            <Spinner
+                android:id="@+id/OnlineUsers"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:visibility="gone" />
+
             <EditText
                 android:id="@+id/username"
                 android:layout_width="143dp"

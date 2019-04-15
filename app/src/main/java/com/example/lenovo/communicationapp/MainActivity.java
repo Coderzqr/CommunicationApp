@@ -1,20 +1,26 @@
 package com.example.lenovo.communicationapp;
 
+import android.content.Context;
 import android.os.Handler;
 import android.os.Message;
+import android.os.Vibrator;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.View;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ScrollView;
+import android.widget.Spinner;
 import android.widget.TextView;
 
 import java.io.*;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -29,23 +35,40 @@ public class MainActivity extends AppCompatActivity {
     TextView chatdialog;
     TextView txthint;
     ScrollView slv;
+    Spinner onlineusers;
+    List<String> list=new ArrayList<String>();
+    private ArrayAdapter<String> adapter;
     private Handler myhandler=new Handler(){
         public void handleMessage(Message msg) {
                          switch (msg.what) {
                              case 0:
-                                 chatdialog.setText(chatdialog.getText().toString()+"\n对方："+(String)msg.obj);
+                                 chatdialog.setText(chatdialog.getText().toString()+"\n"+(String)msg.obj);
+                                 Vibrator vb=(Vibrator)getSystemService(Context.VIBRATOR_SERVICE);
+                                 vb.vibrate(300);
                                  break;
                              case 1:
                                  chatdialog.setText(chatdialog.getText().toString()+"\n服务器："+(String)msg.obj);
                                  break;
                              case 2:
+                                 txthint.setText("在线用户列表：");
                                  btnconnect.setVisibility(View.GONE);
+                                 username.setVisibility(View.GONE);
+                                 onlineusers.setVisibility(View.VISIBLE);
                                  break;
                              case 3:
+                                 txthint.setText("用户名：");
                                  btnconnect.setVisibility(View.VISIBLE);
+                                 username.setVisibility(View.VISIBLE);
+                                 onlineusers.setVisibility(View.GONE);
                                  break;
                              case 4:
-                                 txthint.setText("在线用户列表：");
+                                 String[] onlineusersstr=((String)msg.obj).split(",");
+                                 for(int i=0;i<onlineusersstr.length;i++){
+                                     list.add(onlineusersstr[i]);
+                                 }
+                                 adapter = new ArrayAdapter<String>(MainActivity.this, android.R.layout.simple_spinner_item, list);
+                                 adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                                 onlineusers.setAdapter(adapter);
                                  break;
                              default:
                                      break;
@@ -64,6 +87,7 @@ public class MainActivity extends AppCompatActivity {
         txtmessage=findViewById(R.id.et_chat_message);
         slv=findViewById(R.id.slv);
         txthint=findViewById(R.id.txthint);
+        onlineusers=findViewById(R.id.OnlineUsers);
     }
     private void destroy()  {
         if (isDestroyed) {
@@ -105,7 +129,6 @@ public class MainActivity extends AppCompatActivity {
                         bw = new BufferedWriter(new OutputStreamWriter(client.getOutputStream(), "UTF-8"));
                         client.setKeepAlive(true);
                         handmessage(2,"");
-                        handmessage(4,"");
                         handmessage(1,"成功连接服务器！");
                         bw.write(usernamestr);
                         bw.newLine();
@@ -120,11 +143,32 @@ public class MainActivity extends AppCompatActivity {
                     }
                     // TODO Auto-generated method stub
                     try {
+                        boolean init=true;
                         while(true){
                             BufferedReader br = new BufferedReader(new InputStreamReader(client.getInputStream(),"UTF-8"));
                             String message=br.readLine();
+                            String[] treatstr=message.split("\\|",2);
                             if(message==null) throw new IOException();
-                            handmessage(0,message);
+                            if(init){
+                                handmessage(4,message);
+                                init=false;
+                            }
+                            else{
+                                if(treatstr.length>=2){
+                                    if(treatstr[0].equals("online")){
+                                        list.add(treatstr[1]);
+                                    }
+                                    else if(treatstr[0].equals("offline")){
+                                        list.remove(treatstr[1]);
+                                    }
+                                    else{
+                                        handmessage(0,message);
+                                    }
+                                }
+                                else{
+                                    handmessage(0,message);
+                                }
+                            }
                         }
                     } catch (IOException e) {
                         // TODO Auto-generated catch block
@@ -151,7 +195,7 @@ public class MainActivity extends AppCompatActivity {
     }
     public void btnsendClick(View v){
         slv.fullScroll(ScrollView.FOCUS_DOWN);
-        String targetuser=username.getText().toString();
+        String targetuser=(String)onlineusers.getSelectedItem();
         String tempmessage=txtmessage.getText().toString();
         sendmessage=targetuser+"|"+tempmessage;
         txtmessage.setText("");
